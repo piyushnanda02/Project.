@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Smart Vendor Automation Suite">
+    <test name="All Test Cases">
+        <classes>
+            <class name="com.vendor.testcases.SimpleTest"/>
+            <class name="com.vendor.testcases.LoginTest"/>
+            <class name="com.vendor.testcases.RegistrationTest"/>
+        </classes>
+    </test>
+</suite>

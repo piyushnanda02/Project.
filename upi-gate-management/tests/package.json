@@ -1,0 +1,17 @@
+{
+  "name": "upi-gateway-tests",
+  "version": "1.0.0",
+  "description": "Selenium Automation Tests for UPI Payment Gateway",
+  "scripts": {
+    "test": "node run-tests.js",
+    "test:verbose": "mocha selenium-tests.js --timeout 30000 --reporter spec",
+    "test:report": "mocha selenium-tests.js --timeout 30000 --reporter mochawesome"
+  },
+  "dependencies": {
+    "chai": "^4.5.0",
+    "chromedriver": "^147.0.1",
+    "mocha": "^10.8.2",
+    "node-fetch": "^2.7.0",
+    "selenium-webdriver": "^4.42.0"
+  }
+}

@@ -1,0 +1,83 @@
+/* Page Background */
+
+.login-container{
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#8fa9a6,#9fc2b6);
+    font-family:sans-serif;
+}
+
+/* Glass Card */
+
+.login-card{
+    width:400px;
+    padding:40px;
+    border-radius:20px;
+    background:rgba(255,255,255,0.15);
+    backdrop-filter:blur(15px);
+    box-shadow:0 20px 40px rgba(0,0,0,0.2);
+    text-align:center;
+}
+
+/* Title */
+
+.login-card h2{
+    color:white;
+    margin-bottom:30px;
+    font-size:32px;
+}
+
+/* Inputs */
+
+.login-card input{
+    width:100%;
+    padding:14px;
+    margin:12px 0;
+    border-radius:10px;
+    border:none;
+    outline:none;
+    font-size:15px;
+}
+
+/* Input focus glow */
+
+.login-card input:focus{
+    box-shadow:0 0 10px #00ffcc;
+}
+
+/* Button */
+
+.login-card button{
+    width:100%;
+    padding:14px;
+    margin-top:15px;
+    border:none;
+    border-radius:10px;
+    background:#0fb37c;
+    color:white;
+    font-size:18px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.login-card button:hover{
+    background:#0aa06e;
+}
+
+/* Links */
+
+.forgot{
+    margin-top:15px;
+}
+
+.register{
+    margin-top:10px;
+}
+
+.login-card a{
+    color:#3a1bb7;
+    text-decoration:none;
+}

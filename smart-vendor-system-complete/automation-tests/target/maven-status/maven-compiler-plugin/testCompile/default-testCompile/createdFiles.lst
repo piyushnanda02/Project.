@@ -1,0 +1,3 @@
+com\vendor\testcases\SimpleTest.class
+com\vendor\testcases\LoginTest.class
+com\vendor\testcases\RegistrationTest.class
