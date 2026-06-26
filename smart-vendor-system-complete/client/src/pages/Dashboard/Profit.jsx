@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import { TrendingUp, Percent, Sparkles, Calendar, Plus, Trash2, ShieldAlert } from "lucide-react";
+import axiosInstance from "../utils/axiosInstance";
 
 const Profit = () => {
   const [profits, setProfits] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     amount: "",
     description: "",
@@ -13,47 +15,44 @@ const Profit = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  const token = localStorage.getItem("token");
-
-  // Wrap fetch functions with useCallback to prevent infinite loops
   const fetchProfits = useCallback(async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/profits", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProfits(response.data.data);
+      const response = await axiosInstance.get("/api/profits");
+      setProfits(response.data.data || []);
     } catch (error) {
       console.error("Error fetching profits:", error);
     }
-  }, [token]);
+  }, []);
 
   const fetchSummary = useCallback(async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/profits/summary", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSummary(response.data.data);
+      const response = await axiosInstance.get("/api/profits/summary");
+      setSummary(response.data.data || null);
     } catch (error) {
       console.error("Error fetching summary:", error);
     }
-  }, [token]);
+  }, []);
 
-  // Now useEffect with proper dependencies
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchProfits(), fetchSummary()]);
-      setLoading(false);
-    };
-    loadData();
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([fetchProfits(), fetchSummary()]);
+    setLoading(false);
   }, [fetchProfits, fetchSummary]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.amount || formData.amount <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+
     try {
-      await axios.post("http://localhost:5000/api/profits", formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      setSubmitting(true);
+      await axiosInstance.post("/api/profits", formData);
       setShowForm(false);
       setFormData({ 
         amount: "", 
@@ -64,26 +63,26 @@ const Profit = () => {
       await Promise.all([fetchProfits(), fetchSummary()]);
     } catch (error) {
       console.error("Error adding profit:", error);
-      alert("Failed to add profit");
+      alert("Failed to record profit entry.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this profit entry?")) {
       try {
-        await axios.delete(`http://localhost:5000/api/profits/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axiosInstance.delete(`/api/profits/${id}`);
         await Promise.all([fetchProfits(), fetchSummary()]);
       } catch (error) {
         console.error("Error deleting profit:", error);
-        alert("Failed to delete profit");
+        alert("Failed to delete profit entry.");
       }
     }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -93,80 +92,93 @@ const Profit = () => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'INR'
+      currency: 'INR',
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Loading profit data...</p>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "350px", gap: "16px" }}>
+        <div className="loading-spinner"></div>
+        <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Loading profit data...</p>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <div className="animated-fade-in">
       {/* Header */}
-      <div style={styles.header}>
-        <h1 style={styles.title}>Profit Tracker</h1>
-        <button onClick={() => setShowForm(!showForm)} style={styles.addButton}>
-          {showForm ? "✕ Cancel" : "+ Add Profit"}
+      <div className="view-header">
+        <div className="view-title">
+          <h1>Profit Tracker</h1>
+          <p>Record your revenue streams and track purchasing power adjusted for inflation.</p>
+        </div>
+        <button onClick={() => setShowForm(!showForm)} className="btn-premium profit">
+          {showForm ? "✕ Cancel" : <><Plus size={16} /> Add Profit</>}
         </button>
       </div>
 
       {/* Add Profit Form */}
       {showForm && (
-        <div style={styles.formContainer}>
-          <h3 style={styles.formTitle}>Add Daily Profit</h3>
-          <form onSubmit={handleSubmit} style={styles.form}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Date</label>
+        <div className="panel-card animated-slide-up">
+          <h3 className="panel-title">Add Daily Revenue</h3>
+          <form onSubmit={handleSubmit} className="panel-form">
+            <div className="form-group">
+              <label className="form-label">Date</label>
               <input
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                style={styles.input}
+                className="form-input"
                 required
+                disabled={submitting}
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Amount (₹)</label>
+            
+            <div className="form-group">
+              <label className="form-label">Amount (₹)</label>
               <input
                 type="number"
-                placeholder="Enter profit amount"
+                placeholder="e.g. 5000"
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                style={styles.input}
+                className="form-input"
                 required
+                disabled={submitting}
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Category</label>
+
+            <div className="form-group">
+              <label className="form-label">Category</label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                style={styles.input}
+                className="form-input"
+                disabled={submitting}
+                style={{ padding: '11px 16px' }}
               >
-                <option value="sales">Sales</option>
-                <option value="investment">Investment</option>
-                <option value="service">Service</option>
-                <option value="other">Other</option>
+                <option value="sales">Product Sales</option>
+                <option value="service">Service Fees</option>
+                <option value="investment">Investments</option>
+                <option value="other">Other Income</option>
               </select>
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Description</label>
-              <textarea
-                placeholder="Optional description"
+
+            <div className="form-group" style={{ gridColumn: "span 2" }}>
+              <label className="form-label">Description</label>
+              <input
+                type="text"
+                placeholder="Optional sales notes or client info"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                style={styles.textarea}
-                rows="3"
+                className="form-input"
+                disabled={submitting}
               />
             </div>
-            <button type="submit" style={styles.submitButton}>
-              Save Profit
+
+            <button type="submit" className="btn-premium profit" disabled={submitting}>
+              {submitting ? "Saving..." : "Save Profit"}
             </button>
           </form>
         </div>
@@ -174,24 +186,57 @@ const Profit = () => {
 
       {/* Summary Cards */}
       {summary && (
-        <div style={styles.summaryGrid}>
-          <div style={styles.summaryCard}>
-            <div style={styles.summaryLabel}>Total Profit</div>
-            <div style={styles.summaryValue}>{formatCurrency(summary.totalProfit)}</div>
+        <div className="stats-grid">
+          <div className="stat-card-luxury">
+            <div className="stat-card-info">
+              <span className="stat-card-label">Total Profit</span>
+              <h2 className="stat-card-value" style={{ color: "var(--color-profit)" }}>
+                {formatCurrency(summary.totalProfit)}
+              </h2>
+            </div>
+            <div className="stat-card-icon profit">
+              <TrendingUp size={20} />
+            </div>
           </div>
-          <div style={styles.summaryCard}>
-            <div style={styles.summaryLabel}>Daily Average</div>
-            <div style={styles.summaryValue}>{formatCurrency(summary.dailyAverage)}</div>
+
+          <div className="stat-card-luxury">
+            <div className="stat-card-info">
+              <span className="stat-card-label">Daily Average</span>
+              <h2 className="stat-card-value">
+                {formatCurrency(summary.dailyAverage)}
+              </h2>
+            </div>
+            <div className="stat-card-icon balance">
+              <Sparkles size={20} />
+            </div>
           </div>
-          <div style={styles.summaryCard}>
-            <div style={styles.summaryLabel}>Total Entries</div>
-            <div style={styles.summaryValue}>{summary.totalEntries}</div>
+
+          <div className="stat-card-luxury">
+            <div className="stat-card-info">
+              <span className="stat-card-label">Record Entries</span>
+              <h2 className="stat-card-value">
+                {summary.totalEntries}
+              </h2>
+            </div>
+            <div className="stat-card-icon" style={{ background: "rgba(255, 255, 255, 0.05)", color: "var(--text-secondary)" }}>
+              <Calendar size={20} />
+            </div>
           </div>
+
           {summary.bestDay && (
-            <div style={styles.summaryCard}>
-              <div style={styles.summaryLabel}>Best Day</div>
-              <div style={styles.summaryValue}>{formatCurrency(summary.bestDay.amount)}</div>
-              <div style={styles.summaryDate}>{formatDate(summary.bestDay.date)}</div>
+            <div className="stat-card-luxury">
+              <div className="stat-card-info">
+                <span className="stat-card-label">Peak Performance</span>
+                <h2 className="stat-card-value" style={{ color: "var(--color-profit)" }}>
+                  {formatCurrency(summary.bestDay.amount)}
+                </h2>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                  {formatDate(summary.bestDay.date)}
+                </span>
+              </div>
+              <div className="stat-card-icon profit">
+                <Sparkles size={20} />
+              </div>
             </div>
           )}
         </div>
@@ -199,312 +244,97 @@ const Profit = () => {
 
       {/* Inflation Calculator Section */}
       {summary && summary.inflation && (
-        <div style={styles.inflationSection}>
-          <h2 style={styles.sectionTitle}>Inflation Calculator</h2>
-          <div style={styles.inflationGrid}>
-            <div style={styles.inflationCard}>
-              <div style={styles.inflationLabel}>Current Inflation Rate</div>
-              <div style={styles.inflationValue}>{summary.inflation.currentRate}%</div>
-              <div style={styles.inflationNote}>Annual</div>
+        <div className="panel-card">
+          <h2 className="panel-title" style={{ fontSize: "18px" }}>
+            <Percent size={18} style={{ color: "var(--color-warning)" }} /> Inflation & Purchasing Power Impact
+          </h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "24px" }}>
+            <div style={{ background: "var(--bg-primary)", padding: "16px", borderRadius: "12px", border: "1px solid var(--border-color)", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "6px" }}>Benchmark Inflation Rate</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--color-warning)" }}>{summary.inflation.currentRate}%</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Annual Rate (Adjusted Monthly)</div>
             </div>
-            <div style={styles.inflationCard}>
-              <div style={styles.inflationLabel}>Current Value</div>
-              <div style={styles.inflationValue}>{formatCurrency(summary.totalProfit)}</div>
+
+            <div style={{ background: "var(--bg-primary)", padding: "16px", borderRadius: "12px", border: "1px solid var(--border-color)", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "6px" }}>Gross profit Value</div>
+              <div style={{ fontSize: "22px", fontWeight: "700" }}>{formatCurrency(summary.totalProfit)}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Nominal cash balance</div>
             </div>
-            <div style={styles.inflationCard}>
-              <div style={styles.inflationLabel}>Inflation Adjusted Value</div>
-              <div style={styles.inflationValue}>{formatCurrency(summary.inflation.inflationAdjustedValue)}</div>
-              <div style={styles.inflationLoss}>
-                Loss: {formatCurrency(summary.inflation.purchasingPowerLoss)}
+
+            <div style={{ background: "var(--bg-primary)", padding: "16px", borderRadius: "12px", border: "1px solid var(--border-color)", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "6px" }}>Inflation Adjusted Value</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--color-profit)" }}>{formatCurrency(summary.inflation.inflationAdjustedValue)}</div>
+              <div style={{ fontSize: "11px", color: "var(--color-loss)", fontWeight: "500", marginTop: "4px" }}>
+                Purchasing Power Loss: {formatCurrency(summary.inflation.purchasingPowerLoss)}
               </div>
             </div>
-            <div style={styles.inflationCard}>
-              <div style={styles.inflationLabel}>Projected Next Month</div>
-              <div style={styles.inflationValue}>{formatCurrency(summary.inflation.projectedNextMonth)}</div>
-              <div style={styles.inflationNote}>With inflation</div>
+
+            <div style={{ background: "var(--bg-primary)", padding: "16px", borderRadius: "12px", border: "1px solid var(--border-color)", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "6px" }}>Projected Next Year Value</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--color-brand)" }}>{formatCurrency(summary.inflation.projectedNextYear)}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>Adjusted for inflation growth</div>
             </div>
-            <div style={styles.inflationCard}>
-              <div style={styles.inflationLabel}>Projected Next Year</div>
-              <div style={styles.inflationValue}>{formatCurrency(summary.inflation.projectedNextYear)}</div>
-              <div style={styles.inflationNote}>With inflation</div>
+          </div>
+
+          <div className="business-tip-box" style={{ background: "linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(10, 14, 23, 0.2) 100%)", borderColor: "rgba(245, 158, 11, 0.2)" }}>
+            <div className="tip-icon" style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}>
+              <ShieldAlert size={20} />
+            </div>
+            <div className="tip-content">
+              <h4 style={{ color: "var(--color-warning)" }}>What does this mean for your business?</h4>
+              <p style={{ color: "var(--text-secondary)", marginTop: "4px" }}>
+                Due to an annual inflation rate of <strong>{summary.inflation.currentRate}%</strong>, your gross revenue of <strong>{formatCurrency(summary.totalProfit)}</strong> holds the real purchasing power of <strong>{formatCurrency(summary.inflation.inflationAdjustedValue)}</strong> in terms of raw goods. Keeping too much cash sitting in bank accounts leads to purchasing power decay. Consider investing surplus capital back into high-yield inventory assets or growth streams.
+              </p>
             </div>
           </div>
         </div>
       )}
 
       {/* Profits Table */}
-      <div style={styles.tableContainer}>
-        <h2 style={styles.sectionTitle}>Profit History</h2>
+      <div className="panel-card">
+        <h3 className="panel-title">Revenue History</h3>
         {profits.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p>No profit entries yet. Click "Add Profit" to get started.</p>
+          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
+            No revenue entries recorded yet. Click "Add Profit" above to submit.
           </div>
         ) : (
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.tableHeader}>
-                <th style={styles.th}>Date</th>
-                <th style={styles.th}>Amount</th>
-                <th style={styles.th}>Category</th>
-                <th style={styles.th}>Description</th>
-                <th style={styles.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profits.map((profit) => (
-                <tr key={profit._id} style={styles.tableRow}>
-                  <td style={styles.td}>{formatDate(profit.date)}</td>
-                  <td style={styles.td}>{formatCurrency(profit.amount)}</td>
-                  <td style={styles.td}>
-                    <span style={styles.categoryBadge}>{profit.category}</span>
-                  </td>
-                  <td style={styles.td}>{profit.description || "-"}</td>
-                  <td style={styles.td}>
-                    <button onClick={() => handleDelete(profit._id)} style={styles.deleteButton}>
-                      Delete
-                    </button>
-                  </td>
+          <div className="table-responsive">
+            <table className="table-luxury">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {profits.map((profit) => (
+                  <tr key={profit._id}>
+                    <td style={{ fontWeight: 500 }}>{formatDate(profit.date)}</td>
+                    <td style={{ color: "var(--color-profit)", fontWeight: "600" }}>{formatCurrency(profit.amount)}</td>
+                    <td>
+                      <span className="badge-category" style={{ backgroundColor: "var(--color-profit-light)", color: "var(--color-profit)" }}>
+                        {profit.category}
+                      </span>
+                    </td>
+                    <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>{profit.description || "-"}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <button onClick={() => handleDelete(profit._id)} className="btn-action-delete" title="Delete record">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
   );
-};
-
-// Styles
-const styles = {
-  container: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "24px",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "32px",
-  },
-  title: {
-    fontSize: "28px",
-    fontWeight: "600",
-    color: "#333",
-    margin: 0,
-  },
-  addButton: {
-    padding: "10px 20px",
-    background: "#2c3e50",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "500",
-    transition: "all 0.2s",
-  },
-  formContainer: {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "24px",
-    marginBottom: "32px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    border: "1px solid #e9ecef",
-  },
-  formTitle: {
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: "20px",
-  },
-  form: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-    gap: "20px",
-  },
-  formGroup: {
-    display: "flex",
-    flexDirection: "column",
-  },
-  label: {
-    fontSize: "13px",
-    fontWeight: "500",
-    color: "#666",
-    marginBottom: "6px",
-  },
-  input: {
-    padding: "10px 12px",
-    border: "1px solid #dee2e6",
-    borderRadius: "6px",
-    fontSize: "14px",
-    outline: "none",
-  },
-  textarea: {
-    padding: "10px 12px",
-    border: "1px solid #dee2e6",
-    borderRadius: "6px",
-    fontSize: "14px",
-    fontFamily: "inherit",
-    outline: "none",
-    resize: "vertical",
-  },
-  submitButton: {
-    padding: "10px 20px",
-    background: "#28a745",
-    color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "500",
-    alignSelf: "flex-end",
-  },
-  summaryGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "20px",
-    marginBottom: "32px",
-  },
-  summaryCard: {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "20px",
-    textAlign: "center",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    border: "1px solid #e9ecef",
-  },
-  summaryLabel: {
-    fontSize: "13px",
-    color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    marginBottom: "8px",
-  },
-  summaryValue: {
-    fontSize: "28px",
-    fontWeight: "600",
-    color: "#2c3e50",
-  },
-  summaryDate: {
-    fontSize: "12px",
-    color: "#888",
-    marginTop: "4px",
-  },
-  inflationSection: {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "24px",
-    marginBottom: "32px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    border: "1px solid #e9ecef",
-  },
-  sectionTitle: {
-    fontSize: "20px",
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: "20px",
-  },
-  inflationGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "20px",
-  },
-  inflationCard: {
-    background: "#f8f9fa",
-    borderRadius: "8px",
-    padding: "16px",
-    textAlign: "center",
-  },
-  inflationLabel: {
-    fontSize: "12px",
-    color: "#666",
-    marginBottom: "8px",
-  },
-  inflationValue: {
-    fontSize: "22px",
-    fontWeight: "600",
-    color: "#2c3e50",
-  },
-  inflationLoss: {
-    fontSize: "12px",
-    color: "#dc3545",
-    marginTop: "8px",
-  },
-  inflationNote: {
-    fontSize: "11px",
-    color: "#888",
-    marginTop: "4px",
-  },
-  tableContainer: {
-    background: "#fff",
-    borderRadius: "12px",
-    overflow: "hidden",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    border: "1px solid #e9ecef",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  tableHeader: {
-    background: "#f8f9fa",
-    borderBottom: "1px solid #e9ecef",
-  },
-  th: {
-    padding: "12px 16px",
-    textAlign: "left",
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#666",
-  },
-  td: {
-    padding: "12px 16px",
-    fontSize: "14px",
-    color: "#333",
-    borderBottom: "1px solid #e9ecef",
-  },
-  tableRow: {
-    transition: "background 0.2s",
-  },
-  categoryBadge: {
-    display: "inline-block",
-    padding: "4px 8px",
-    background: "#e9ecef",
-    borderRadius: "4px",
-    fontSize: "12px",
-    color: "#666",
-  },
-  deleteButton: {
-    padding: "4px 12px",
-    background: "#dc3545",
-    color: "#fff",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "12px",
-  },
-  emptyState: {
-    padding: "40px",
-    textAlign: "center",
-    color: "#666",
-  },
-  loadingContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "400px",
-  },
-  spinner: {
-    width: "40px",
-    height: "40px",
-    border: "3px solid #f3f3f3",
-    borderTop: "3px solid #2c3e50",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-    marginBottom: "16px",
-  },
 };
 
 export default Profit;

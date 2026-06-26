@@ -1,4 +1,3 @@
-//import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import Landing from "./pages/Landing";
@@ -15,22 +14,14 @@ import Expense from "./pages/Dashboard/Expense";
 import Analytics from "./pages/Dashboard/Analytics";
 import Profile from "./pages/Dashboard/Profile";
 
-// Import SideDrawer
-import SideDrawer from "./layout/SideDrawer";
-
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
 };
 
 function App() {
-  const token = localStorage.getItem("token");
-
   return (
     <Router>
-      {/* 🔥 SideDrawer - Shows globally when logged in */}
-      {token && <SideDrawer />}
-
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
@@ -50,7 +41,7 @@ function App() {
           }
         >
           <Route index element={<DashboardHome />} />
-          <Route path="profit" element={<Profit />} />   {/* ✅ updated */}
+          <Route path="profit" element={<Profit />} />
           <Route path="loss" element={<Loss />} />
           <Route path="expense" element={<Expense />} />
           <Route path="analytics" element={<Analytics />} />

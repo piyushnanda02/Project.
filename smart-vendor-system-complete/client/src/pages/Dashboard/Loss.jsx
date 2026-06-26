@@ -1,4 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { 
+  TrendingDown, 
+  Plus, 
+  Trash2, 
+  Calendar, 
+  AlertOctagon, 
+  Tag, 
+  PieChart as PieIcon, 
+  BarChart2 
+} from "lucide-react";
 import {
   LineChart,
   Line,
@@ -14,91 +24,122 @@ import {
   Legend,
   ResponsiveContainer
 } from "recharts";
+import axiosInstance from "../utils/axiosInstance";
 
-const Expense = () => {
-  const [expenseData, setExpenseData] = useState([]);
-  const [categoryData, setCategoryData] = useState([]);
-  const [trendData, setTrendData] = useState([]);
+const Loss = () => {
+  const userId = localStorage.getItem("userId");
+  const token = localStorage.getItem("token");
+
+  const [losses, setLosses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("weekly");
-  const [totalExpense, setTotalExpense] = useState(0);
-  const [averageExpense, setAverageExpense] = useState(0);
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    amount: "",
+    category: "damaged_goods",
+    description: "",
+    date: new Date().toISOString().split('T')[0]
+  });
 
-  const COLORS = ['#e74c3c', '#f39c12', '#3498db', '#2c3e50', '#27ae60', '#9b59b6'];
+  const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#6b7280'];
 
-  // Wrap loadChartData with useCallback to prevent recreation on each render
-  const loadChartData = useCallback(() => {
+  const fetchLosses = useCallback(async () => {
+    try {
+      const response = await axiosInstance.get(`/api/records/${userId}`);
+      const list = response.data || [];
+      // Filter records for "loss" type
+      const lossList = list.filter(item => item.type === "loss");
+      // Sort by date descending
+      setLosses(lossList.sort((a, b) => new Date(b.date) - new Date(a.date)));
+    } catch (error) {
+      console.error("Error fetching losses:", error);
+    }
+  }, [userId]);
+
+  const loadData = useCallback(async () => {
     setLoading(true);
-    
-    // Simulate API data - In real app, fetch from backend
-    setTimeout(() => {
-      if (selectedTimeframe === "weekly") {
-        setExpenseData([
-          { day: "Mon", amount: 2500, category: "Food" },
-          { day: "Tue", amount: 1800, category: "Transport" },
-          { day: "Wed", amount: 3200, category: "Shopping" },
-          { day: "Thu", amount: 1500, category: "Bills" },
-          { day: "Fri", amount: 2800, category: "Entertainment" },
-          { day: "Sat", amount: 4200, category: "Dining" },
-          { day: "Sun", amount: 3000, category: "Groceries" },
-        ]);
-        
-        setCategoryData([
-          { name: "Food", value: 8500 },
-          { name: "Transport", value: 3200 },
-          { name: "Bills", value: 4500 },
-          { name: "Shopping", value: 5800 },
-          { name: "Entertainment", value: 2800 },
-          { name: "Other", value: 1900 },
-        ]);
-        
-        setTrendData([
-          { day: "Mon", expense: 2500 },
-          { day: "Tue", expense: 1800 },
-          { day: "Wed", expense: 3200 },
-          { day: "Thu", expense: 1500 },
-          { day: "Fri", expense: 2800 },
-          { day: "Sat", expense: 4200 },
-          { day: "Sun", expense: 3000 },
-        ]);
-        
-        setTotalExpense(19000);
-        setAverageExpense(2714);
-      } else if (selectedTimeframe === "monthly") {
-        setExpenseData([
-          { day: "Week 1", amount: 12500, category: "All" },
-          { day: "Week 2", amount: 14800, category: "All" },
-          { day: "Week 3", amount: 16200, category: "All" },
-          { day: "Week 4", amount: 18500, category: "All" },
-        ]);
-        
-        setCategoryData([
-          { name: "Food", value: 28500 },
-          { name: "Transport", value: 12200 },
-          { name: "Bills", value: 18500 },
-          { name: "Shopping", value: 22500 },
-          { name: "Entertainment", value: 10800 },
-          { name: "Other", value: 9500 },
-        ]);
-        
-        setTrendData([
-          { day: "Week 1", expense: 12500 },
-          { day: "Week 2", expense: 14800 },
-          { day: "Week 3", expense: 16200 },
-          { day: "Week 4", expense: 18500 },
-        ]);
-        
-        setTotalExpense(62000);
-        setAverageExpense(15500);
-      }
-      setLoading(false);
-    }, 500);
-  }, [selectedTimeframe]);
+    await fetchLosses();
+    setLoading(false);
+  }, [fetchLosses]);
 
-  // Now useEffect with proper dependency
   useEffect(() => {
-    loadChartData();
-  }, [loadChartData]);
+    if (token && userId) {
+      loadData();
+    }
+  }, [token, userId, loadData]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.amount || formData.amount <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await axiosInstance.post("/api/records/add", {
+        userId,
+        type: "loss",
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        description: formData.description,
+        date: formData.date
+      });
+      setShowForm(false);
+      setFormData({
+        amount: "",
+        category: "damaged_goods",
+        description: "",
+        date: new Date().toISOString().split('T')[0]
+      });
+      await fetchLosses();
+    } catch (error) {
+      console.error("Error adding loss:", error);
+      alert("Failed to log loss entry.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this loss record?")) {
+      try {
+        await axiosInstance.delete(`/api/records/${id}`);
+        await fetchLosses();
+      } catch (error) {
+        console.error("Error deleting loss record:", error);
+        alert("Failed to delete record.");
+      }
+    }
+  };
+
+  // Calculations
+  const totalLoss = losses.reduce((sum, item) => sum + item.amount, 0);
+  const averageLoss = losses.length > 0 ? (totalLoss / losses.length) : 0;
+
+  // Process Category Distribution Data
+  const categoryMap = {};
+  losses.forEach(item => {
+    const cat = item.category || "other";
+    categoryMap[cat] = (categoryMap[cat] || 0) + item.amount;
+  });
+  const categoryData = Object.keys(categoryMap).map(key => ({
+    name: key.replace("_", " ").toUpperCase(),
+    value: categoryMap[key]
+  }));
+
+  // Process Trend Data (group by date, sort chronological)
+  const trendMap = {};
+  [...losses].reverse().forEach(item => {
+    const dateFormatted = new Date(item.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    trendMap[dateFormatted] = (trendMap[dateFormatted] || 0) + item.amount;
+  });
+  const trendData = Object.keys(trendMap).map(key => ({
+    date: key,
+    amount: trendMap[key]
+  })).slice(-10);
+
+  const highestCategory = categoryData.reduce((max, item) => item.value > max.value ? item : max, { name: "N/A", value: 0 });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -110,325 +151,251 @@ const Expense = () => {
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Loading expense data...</p>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "350px", gap: "16px" }}>
+        <div className="loading-spinner"></div>
+        <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Loading loss data...</p>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Expense Tracker</h1>
-      <p style={styles.subtitle}>Track and analyze your expenses</p>
+    <div className="animated-fade-in">
+      {/* Header */}
+      <div className="view-header">
+        <div className="view-title">
+          <h1>Loss Ledger</h1>
+          <p>Record stock leakage, refunds, theft, and expired inventory to audit leakage.</p>
+        </div>
+        <button onClick={() => setShowForm(!showForm)} className="btn-premium loss">
+          {showForm ? "✕ Cancel" : <><Plus size={16} /> Log Loss</>}
+        </button>
+      </div>
+
+      {/* Add Loss Form */}
+      {showForm && (
+        <div className="panel-card animated-slide-up">
+          <h3 className="panel-title">Log Loss Event</h3>
+          <form onSubmit={handleSubmit} className="panel-form">
+            <div className="form-group">
+              <label className="form-label">Date</label>
+              <input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className="form-input"
+                required
+                disabled={submitting}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Amount (₹)</label>
+              <input
+                type="number"
+                placeholder="e.g. 1500"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                className="form-input"
+                required
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Loss Category</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="form-input"
+                disabled={submitting}
+                style={{ padding: '11px 16px' }}
+              >
+                <option value="damaged_goods">Damaged Goods</option>
+                <option value="expired_stock">Expired Stock</option>
+                <option value="refunds">Refunds Given</option>
+                <option value="theft">Theft / Shoplifting</option>
+                <option value="other">Other Leakage</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ gridColumn: "span 2" }}>
+              <label className="form-label">Reason / Item Details</label>
+              <input
+                type="text"
+                placeholder="Details of the items or incident"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="form-input"
+                disabled={submitting}
+              />
+            </div>
+
+            <button type="submit" className="btn-premium loss" disabled={submitting}>
+              {submitting ? "Logging..." : "Log Loss"}
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Summary Cards */}
-      <div style={styles.summaryGrid}>
-        <div style={styles.summaryCard}>
-          <div style={styles.summaryLabel}>Total Expenses</div>
-          <div style={styles.summaryValue}>{formatCurrency(totalExpense)}</div>
-          <div style={styles.summaryChange}>This {selectedTimeframe}</div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={styles.summaryLabel}>Average Daily</div>
-          <div style={styles.summaryValue}>{formatCurrency(averageExpense)}</div>
-          <div style={styles.summaryChange}>Per day</div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={styles.summaryLabel}>Highest Category</div>
-          <div style={styles.summaryValue}>
-            {categoryData.reduce((max, item) => item.value > max.value ? item : max, categoryData[0])?.name || "N/A"}
+      <div className="stats-grid">
+        <div className="stat-card-luxury">
+          <div className="stat-card-info">
+            <span className="stat-card-label">Total Capital Loss</span>
+            <h2 className="stat-card-value" style={{ color: "var(--color-loss)" }}>
+              {formatCurrency(totalLoss)}
+            </h2>
           </div>
-          <div style={styles.summaryChange}>Most spent on</div>
+          <div className="stat-card-icon loss">
+            <TrendingDown size={20} />
+          </div>
+        </div>
+
+        <div className="stat-card-luxury">
+          <div className="stat-card-info">
+            <span className="stat-card-label">Average per Incident</span>
+            <h2 className="stat-card-value">
+              {formatCurrency(averageLoss)}
+            </h2>
+          </div>
+          <div className="stat-card-icon" style={{ background: "rgba(255, 255, 255, 0.05)", color: "var(--text-secondary)" }}>
+            <AlertOctagon size={20} />
+          </div>
+        </div>
+
+        <div className="stat-card-luxury">
+          <div className="stat-card-info">
+            <span className="stat-card-label">Highest Loss Area</span>
+            <h2 className="stat-card-value" style={{ color: "var(--color-warning)" }}>
+              {highestCategory.name}
+            </h2>
+            {highestCategory.value > 0 && (
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                Total: {formatCurrency(highestCategory.value)}
+              </span>
+            )}
+          </div>
+          <div className="stat-card-icon" style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}>
+            <Tag size={20} />
+          </div>
         </div>
       </div>
 
-      {/* Timeframe Selector */}
-      <div style={styles.timeframeContainer}>
-        <button 
-          onClick={() => setSelectedTimeframe("weekly")} 
-          style={selectedTimeframe === "weekly" ? styles.activeTimeframeBtn : styles.timeframeBtn}
-        >
-          Weekly
-        </button>
-        <button 
-          onClick={() => setSelectedTimeframe("monthly")} 
-          style={selectedTimeframe === "monthly" ? styles.activeTimeframeBtn : styles.timeframeBtn}
-        >
-          Monthly
-        </button>
-      </div>
+      {/* Analytical Charts */}
+      {losses.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))", gap: "24px", marginBottom: "24px" }}>
+          {/* Trend Bar Chart */}
+          <div className="panel-card" style={{ marginBottom: 0 }}>
+            <h3 className="panel-title"><BarChart2 size={18} style={{ color: "var(--color-brand)" }} /> Loss Incidents</h3>
+            <div style={{ width: "100%", height: 260 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <XAxis dataKey="date" stroke="#9ca3af" fontSize={11} />
+                  <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={(v) => `₹${v}`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#111827", borderColor: "#1f2937" }}
+                    itemStyle={{ color: "var(--color-loss)" }}
+                    labelStyle={{ color: "#fff" }}
+                  />
+                  <Bar dataKey="amount" fill="#ef4444" radius={[4, 4, 0, 0]} name="Loss amount" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
-      {/* Expense Trend Line Chart */}
-      <div style={styles.chartSection}>
-        <h3 style={styles.chartTitle}>Expense Trend</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="day" />
-            <YAxis tickFormatter={(value) => `₹${value/1000}K`} />
-            <Tooltip formatter={(value) => formatCurrency(value)} />
-            <Legend />
-            <Line type="monotone" dataKey="expense" stroke="#e74c3c" strokeWidth={2} name="Expense" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Two Column Layout */}
-      <div style={styles.twoColumnGrid}>
-        {/* Category Distribution Pie Chart */}
-        <div style={styles.chartSection}>
-          <h3 style={styles.chartTitle}>Expense by Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={categoryData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => formatCurrency(value)} />
-            </PieChart>
-          </ResponsiveContainer>
+          {/* Pie Chart */}
+          <div className="panel-card" style={{ marginBottom: 0 }}>
+            <h3 className="panel-title"><PieIcon size={18} style={{ color: "var(--color-warning)" }} /> Distribution of Loss</h3>
+            <div style={{ width: "100%", height: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#111827", borderColor: "#1f2937" }}
+                    formatter={(v) => formatCurrency(v)}
+                  />
+                  <Legend 
+                    layout="horizontal" 
+                    verticalAlign="bottom" 
+                    align="center"
+                    iconSize={10}
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: 11, color: "var(--text-secondary)" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Daily Expense Bar Chart */}
-        <div style={styles.chartSection}>
-          <h3 style={styles.chartTitle}>Daily Expenses</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={expenseData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="day" />
-              <YAxis tickFormatter={(value) => `₹${value/1000}K`} />
-              <Tooltip formatter={(value) => formatCurrency(value)} />
-              <Bar dataKey="amount" fill="#3498db">
-                {expenseData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Expense Table */}
-      <div style={styles.tableContainer}>
-        <h3 style={styles.chartTitle}>Recent Expenses</h3>
-        <table style={styles.table}>
-          <thead>
-            <tr style={styles.tableHeader}>
-              <th style={styles.th}>Day</th>
-              <th style={styles.th}>Amount</th>
-              <th style={styles.th}>Category</th>
-              <th style={styles.th}>Percentage</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenseData.map((item, index) => {
-              const percentage = ((item.amount / totalExpense) * 100).toFixed(1);
-              return (
-                <tr key={index} style={styles.tableRow}>
-                  <td style={styles.td}>{item.day}</td>
-                  <td style={styles.td}>{formatCurrency(item.amount)}</td>
-                  <td style={styles.td}>{item.category}</td>
-                  <td style={styles.td}>
-                    <div style={styles.percentageBar}>
-                      <div style={{...styles.percentageFill, width: `${percentage}%`}}></div>
-                      <span style={styles.percentageText}>{percentage}%</span>
-                    </div>
-                  </td>
+      {/* History logs table */}
+      <div className="panel-card">
+        <h3 className="panel-title">Audit Log</h3>
+        {losses.length === 0 ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
+            No losses recorded. Click "Log Loss" above to enter database leakage events.
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table-luxury">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Loss Amount</th>
+                  <th>Category</th>
+                  <th> incident details</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {losses.map((item) => (
+                  <tr key={item._id}>
+                    <td style={{ fontWeight: 500 }}>
+                      {new Date(item.date).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </td>
+                    <td style={{ color: "var(--color-loss)", fontWeight: "600" }}>
+                      {formatCurrency(item.amount)}
+                    </td>
+                    <td>
+                      <span className="badge-category" style={{ backgroundColor: "var(--color-loss-light)", color: "var(--color-loss)" }}>
+                        {item.category.replace("_", " ")}
+                      </span>
+                    </td>
+                    <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
+                      {item.description || "-"}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button onClick={() => handleDelete(item._id)} className="btn-action-delete" title="Delete record">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const styles = {
-  container: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "24px",
-  },
-  title: {
-    fontSize: "28px",
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: "8px",
-  },
-  subtitle: {
-    fontSize: "16px",
-    color: "#666",
-    marginBottom: "32px",
-  },
-  loadingContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "400px",
-  },
-  spinner: {
-    width: "40px",
-    height: "40px",
-    border: "3px solid #f3f3f3",
-    borderTop: "3px solid #2c3e50",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-    marginBottom: "16px",
-  },
-  summaryGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: "20px",
-    marginBottom: "32px",
-  },
-  summaryCard: {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "20px",
-    textAlign: "center",
-    border: "1px solid #e9ecef",
-  },
-  summaryLabel: {
-    fontSize: "13px",
-    color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    marginBottom: "8px",
-  },
-  summaryValue: {
-    fontSize: "28px",
-    fontWeight: "600",
-    color: "#e74c3c",
-  },
-  summaryChange: {
-    fontSize: "12px",
-    color: "#888",
-    marginTop: "8px",
-  },
-  timeframeContainer: {
-    display: "flex",
-    gap: "12px",
-    marginBottom: "24px",
-    justifyContent: "flex-end",
-  },
-  timeframeBtn: {
-    padding: "8px 16px",
-    background: "#fff",
-    border: "1px solid #dee2e6",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "14px",
-    color: "#495057",
-  },
-  activeTimeframeBtn: {
-    padding: "8px 16px",
-    background: "#2c3e50",
-    border: "1px solid #2c3e50",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "14px",
-    color: "#fff",
-  },
-  chartSection: {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "24px",
-    marginBottom: "24px",
-    border: "1px solid #e9ecef",
-  },
-  chartTitle: {
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: "20px",
-  },
-  twoColumnGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))",
-    gap: "24px",
-    marginBottom: "24px",
-  },
-  tableContainer: {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "24px",
-    border: "1px solid #e9ecef",
-    overflowX: "auto",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  tableHeader: {
-    borderBottom: "2px solid #e9ecef",
-  },
-  th: {
-    padding: "12px 16px",
-    textAlign: "left",
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#666",
-  },
-  td: {
-    padding: "12px 16px",
-    fontSize: "14px",
-    color: "#333",
-    borderBottom: "1px solid #e9ecef",
-  },
-  tableRow: {
-    transition: "background 0.2s",
-  },
-  percentageBar: {
-    position: "relative",
-    width: "100%",
-    height: "24px",
-    background: "#e9ecef",
-    borderRadius: "12px",
-    overflow: "hidden",
-  },
-  percentageFill: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    height: "100%",
-    background: "#e74c3c",
-    borderRadius: "12px",
-    transition: "width 0.3s",
-  },
-  percentageText: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
-    fontSize: "11px",
-    fontWeight: "500",
-    color: "#fff",
-    zIndex: 1,
-  },
-};
-
-// Add spinner animation to global styles
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
-
-export default Expense;
+export default Loss;

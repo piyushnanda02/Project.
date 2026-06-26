@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "chai": "^4.5.0",
-    "chromedriver": "^147.0.1",
+    "chromedriver": "^147.0.4",
     "mocha": "^10.8.2",
     "node-fetch": "^2.7.0",
-    "selenium-webdriver": "^4.42.0"
+    "selenium-webdriver": "^4.43.0"
   }
 }
